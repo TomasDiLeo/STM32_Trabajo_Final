@@ -6,10 +6,12 @@
 	#define SHORT_DELAY 100
 	#define MID_DELAY 200
 	#define LONG_DELAY 500
+	#define CLOCK_EDIT_TIMEOUT 1200
 #else
 	#define SHORT_DELAY 1000
 	#define MID_DELAY 2000
 	#define LONG_DELAY 5000
+	#define CLOCK_EDIT_TIMEOUT 12000
 #endif
 
 #include <stdio.h>

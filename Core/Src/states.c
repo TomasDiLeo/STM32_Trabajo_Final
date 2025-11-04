@@ -4,12 +4,16 @@ App_State_t state = IDLE;
 
 static uint8_t key_buffer;
 static char string_buffer[30];
-static uint8_t temp_index = 0;
+
+//Temperature reading variables
 static float temp_buffer[10] = {0};
+static uint8_t temp_index = 0;
 static float temp = 0.0f;
 
+//generic timer variable for timeout logic
 static uint32_t timer;
 
+//Function pairs for state logic
 static StateFunction state_functions[] = {
 		{idle_setup, idle_loop},
 		{info_setup, info_loop},
@@ -20,6 +24,7 @@ static StateFunction state_functions[] = {
 		{date_edit_setup, date_edit_loop}
 };
 
+// Avoid SprintF formating for float values because it uses a lot of memory
 static void format_temp(float temp, char* buffer) {
     int whole = (int)temp;
     int decimal = (int)((temp - whole) * 10);
@@ -30,7 +35,12 @@ static void format_temp(float temp, char* buffer) {
     buffer[4] = '\0';
 }
 
+/*
+ * @brief Updates system variables and states such as the
+ * system's clock and temperature moving average
+ * */
 static void system_update(void){
+	//Moving Average Temperature reading logic
 	float current_temp = poll_sensor();
 
 	temp_buffer[temp_index] = current_temp;
@@ -42,6 +52,7 @@ static void system_update(void){
 	}
 	temp = sum / 10;
 
+	//Update system clock
 	clock_update_datetime();
 }
 
@@ -67,7 +78,8 @@ void idle_setup(){
 
     lcd_put_cur(0, 0);
     char *wd = week_day_to_string(datetime.week_day);
-    lcd_send_string(wd);
+    sprintf(string_buffer, "%.7s", wd);
+    lcd_send_string(string_buffer);
     lcd_send_data(' ');
     lcd_print_date(datetime.date, datetime.month, datetime.year);
     lcd_send_data(' ');
@@ -83,13 +95,28 @@ uint8_t idle_loop(void){
 	static uint8_t last_date = 32;
 	static uint8_t blink_counter = 0;
 
+	switch(key_buffer){
+	case 11:
+		state = INFO;
+		return 1;
+	case 12:
+		state = CLOCK_EDIT;
+		return 1;
+	case 13:
+		state = TEMP_EDIT;
+		return 1;
+	case 14:
+		state = SHOPWINDOW_EDIT;
+		return 1;
+	}
+
 	//UPDATE TEMPERATURE
 	lcd_put_cur(1,10);
 	format_temp(temp, string_buffer);
 	lcd_send_string(string_buffer);
 
 	//BLINKING COLON
-	blink_counter = (blink_counter + 1) & 0x07; //BLINK IN RANGE 0-7
+	blink_counter = (blink_counter + 1) & 0x07;
 
 	lcd_put_cur(1, 2);
 	if(blink_counter < 4){
@@ -102,7 +129,8 @@ uint8_t idle_loop(void){
 	if(last_date != datetime.date){
 	    lcd_put_cur(0, 0);
 	    char *wd = week_day_to_string(datetime.week_day);
-	    lcd_send_string(wd);
+	    sprintf(string_buffer, "%.7s", wd);
+	    lcd_send_string(string_buffer);
 	    lcd_send_data(' ');
 	    lcd_print_date(datetime.date, datetime.month, datetime.year);
 
@@ -118,21 +146,6 @@ uint8_t idle_loop(void){
 		lcd_print_time(datetime.hours, datetime.minutes);
 
 		last_minute = datetime.minutes;
-	}
-
-	switch(key_buffer){
-	case 11:
-		state = INFO;
-		return 1;
-	case 12:
-		state = CLOCK_EDIT;
-		return 1;
-	case 13:
-		state = TEMP_EDIT;
-		return 1;
-	case 14:
-		state = SHOPWINDOW_EDIT;
-		return 1;
 	}
 
 	return 0;
@@ -172,7 +185,12 @@ void clock_e_setup(void){
 	timer = 0;
 
 	lcd_put_cur(0, 0);
-	lcd_send_string("EDITAR RELOJ (A)");
+	lcd_send_string("EDIT RELOJ    :B");
+	lcd_put_cur(0, 12);
+	send_lcd_ASCII(0x7F); // <-
+	lcd_put_cur(0, 13);
+	send_lcd_ASCII(0x7E); // ->
+
 	lcd_put_cur(1, 0);
 	lcd_send_string("   FECHA   HORA ");
 
@@ -188,7 +206,7 @@ void clock_e_setup(void){
 uint8_t clock_e_loop(void){
 
 	//ESCAPE AND TIMEOUT
-	if(key_buffer == 15 || timer > MID_DELAY){
+	if(key_buffer == 15 || timer > CLOCK_EDIT_TIMEOUT){
 		state = IDLE;
 		return 1;
 	}
@@ -200,7 +218,7 @@ uint8_t clock_e_loop(void){
 	}
 
 	//SELECTION TOGGLE
-	if(key_buffer == 11){
+	if(key_buffer == 12){
 		timer = 0;
 
 		if(selection == DATE_EDIT){
@@ -237,11 +255,17 @@ void time_edit_setup(void){
 	time_buffer[5] = datetime.seconds % 10;
 
 	lcd_put_cur(0, 0);
-	lcd_send_string(" A: DER | B: IZQ");
+	lcd_send_string(" A:   B:   #:ENT");
+	lcd_put_cur(0, 4);
+	send_lcd_ASCII(0x7E); //->
+	lcd_put_cur(0, 9);
+	send_lcd_ASCII(0x7F); //<-
+
 	lcd_put_cur(1, 0);
 	lcd_print_time(datetime.hours, datetime.minutes);
 	lcd_send_data(':');
 	lcd_print2d(datetime.seconds);
+	lcd_send_string("  (HORA)");
 	lcd_send_string("          ");
 
 	lcd_send_cmd(CUR_ON_BLINK_ON);
@@ -280,9 +304,15 @@ void date_edit_setup(void){
 	time_buffer[5] = datetime.year % 10;
 
 	lcd_put_cur(0, 0);
-	lcd_send_string(" A: DER | B: IZQ");
+	lcd_send_string(" A:   B:   #:ENT");
+	lcd_put_cur(0, 4);
+	send_lcd_ASCII(0x7E); //->
+	lcd_put_cur(0, 9);
+	send_lcd_ASCII(0x7F); //<-
+
 	lcd_put_cur(1, 0);
 	lcd_print_date(datetime.date, datetime.month, datetime.year);
+	lcd_send_string(" (FECHA)");
 	lcd_send_string("          ");
 
 	lcd_send_cmd(CUR_ON_BLINK_ON);
@@ -309,7 +339,7 @@ uint8_t date_edit_loop(void){
 
 static uint8_t edition_mode(void){
 	//ESCAPE AND TIMEOUT
-	if(key_buffer == 15 || timer > MID_DELAY){
+	if(key_buffer == 15 || timer > CLOCK_EDIT_TIMEOUT){
 		state = CLOCK_EDIT;
 		return 1;
 	}
@@ -325,13 +355,13 @@ static uint8_t edition_mode(void){
 
 	//INSERT NUMBER KEY
 	if(key_buffer > 0 && key_buffer <= 10){
-		timer = 0;
+		timer = 0; //RESET TIMER ON USER INPUT
 		if(key_buffer == 10) key_buffer = 0;
 
 		time_buffer[col_selection] = key_buffer;
 		sprintf(string_buffer, "%1d", key_buffer);
 		lcd_send_string(string_buffer);
-		lcd_send_cmd(MOV_CUR_LEFT);
+		col_selection = (col_selection + 1) % 6;
 	}
 
 	return 0;
@@ -348,8 +378,15 @@ uint8_t temp_e_loop(void){
 	return 0;
 }
 
-//SHOPWINDOW EDIT STATE FUNCTIONS
+//SHOPWINDOW EDIT
 
+	//SHOPWINDOW VARIABLES
+static uint8_t hour_on = 23;
+static uint8_t minutes_on = 30;
+static uint8_t hour_off = 7;
+static uint8_t minutes_off = 30;
+
+	//SHOPWINDOW EDIT STATE FUNCTIONS
 void shopwindow_e_setup(void){
 
 }
