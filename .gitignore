@@ -41,6 +41,13 @@
 *.su
 *.idb
 *.pdb
+*.cyclo
+*.pdsbak
+*.workspace
+
+#Build folder
+Release/
+Debug/
 
 # Kernel Module Compile Results
 *.mod*
@@ -53,3 +60,6 @@ dkms.conf
 
 # debug information files
 *.dwo
+
+#Obsidian
+.obsidian
