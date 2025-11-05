@@ -1,18 +1,19 @@
 #ifndef STATES_H
 #define STATES_H
 
-#define PROTEUS //COMENTAR PARA HARDWARE REAL
+//#define PROTEUS //COMENTAR PARA HARDWARE REAL
 #ifdef PROTEUS
 	#define SHORT_DELAY 100
 	#define MID_DELAY 200
 	#define LONG_DELAY 500
-	#define CLOCK_EDIT_TIMEOUT 1200
+	#define EXTRA_LONG_DELAY 1200
 #else
 	#define SHORT_DELAY 1000
 	#define MID_DELAY 2000
 	#define LONG_DELAY 5000
-	#define CLOCK_EDIT_TIMEOUT 12000
+	#define EXTRA_LONG_DELAY 15000
 #endif
+
 
 #include <stdio.h>
 #include "stm32f1xx_hal.h"
@@ -20,6 +21,10 @@
 #include "KEYPAD.h"
 #include "LCD_NC.h"
 #include "TEMPERATURE.h"
+#include <ALARM.h>
+
+#define SHOPWINDOW_LED_Pin GPIO_PIN_15
+#define SHOPWINDOW_LED_GPIO_Port GPIOB
 
 typedef enum {
 	IDLE = 0,

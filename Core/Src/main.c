@@ -95,6 +95,7 @@ int main(void)
   lcd_init();
   clock_init(&hrtc);
   temperature_sensor_init(&hadc1);
+  alarm_init();
 
   clock_set_date(20, 12, 25);
   clock_set_time(23, 59, 30);
@@ -113,7 +114,7 @@ int main(void)
 	  if(status_buffer != REST){
 		  lcd_clear();
 		  lcd_send_string(clock_error_string(status_buffer));
-		  HAL_Delay(CLOCK_EDIT_TIMEOUT);
+		  HAL_Delay(MID_DELAY);
 
 		  status_buffer = REST;
 	  }
