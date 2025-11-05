@@ -100,6 +100,7 @@ int main(void)
   clock_set_date(20, 12, 25);
   clock_set_time(23, 59, 30);
   clock_update_datetime();
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -114,7 +115,7 @@ int main(void)
 	  if(status_buffer != REST){
 		  lcd_clear();
 		  lcd_send_string(clock_error_string(status_buffer));
-		  HAL_Delay(MID_DELAY);
+		  HAL_Delay(SHORT_DELAY);
 
 		  status_buffer = REST;
 	  }

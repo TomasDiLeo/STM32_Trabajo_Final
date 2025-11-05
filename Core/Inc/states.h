@@ -21,7 +21,8 @@
 #include "KEYPAD.h"
 #include "LCD_NC.h"
 #include "TEMPERATURE.h"
-#include <ALARM.h>
+#include "ALARM.h"
+#include "AIR CONDITIONING.h"
 
 #define SHOPWINDOW_LED_Pin GPIO_PIN_15
 #define SHOPWINDOW_LED_GPIO_Port GPIOB
@@ -33,7 +34,9 @@ typedef enum {
 	TEMP_EDIT,
 	SHOPWINDOW_EDIT,
 	TIME_EDIT,
-	DATE_EDIT
+	DATE_EDIT,
+	SHOPWINDOW_START_EDIT,
+	SHOPWINDOW_END_EDIT
 } App_State_t;
 
 typedef void (*StateSetup)(void);
@@ -72,5 +75,10 @@ uint8_t temp_e_loop(void);
 //SHOPWINDOW EDIT STATE FUNCTIONS
 void shopwindow_e_setup(void);
 uint8_t shopwindow_e_loop(void);
+
+void shopwindow_start_setup(void);
+uint8_t shopwindow_start_loop(void);
+void shopwindow_end_setup(void);
+uint8_t shopwindow_end_loop(void);
 
 #endif /* MENU_H */

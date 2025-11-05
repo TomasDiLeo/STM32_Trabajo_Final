@@ -5,6 +5,15 @@ App_State_t state = IDLE;
 static uint8_t key_buffer;
 static char string_buffer[30];
 
+// EDITOR VARIABLES
+static const uint8_t cursor_time_full[6] = {0, 1, 3, 4, 6, 7};
+static const uint8_t cursor_time_short[4] = {0, 1, 3, 4};
+static const uint8_t cursor_temperature[2] = {0, 1};
+
+static uint8_t exit = 0;
+static uint8_t col_selection = 0;
+static uint8_t time_buffer[6] = {0};
+
 //Temperature reading variables
 static float temp_buffer[10] = {0};
 static uint8_t temp_index = 0;
@@ -30,7 +39,9 @@ static StateFunction state_functions[] = {
 		{temp_e_setup, temp_e_loop},
 		{shopwindow_e_setup, shopwindow_e_loop},
 		{time_edit_setup, time_edit_loop},
-		{date_edit_setup, date_edit_loop}
+		{date_edit_setup, date_edit_loop},
+		{shopwindow_start_setup, shopwindow_start_loop},
+		{shopwindow_end_setup, shopwindow_end_loop}
 };
 
 static uint8_t shopwindowState(void) {
@@ -89,8 +100,10 @@ static void system_update(void){
 	if(shopwindowState()){
 		WRITE_PIN(SHOPWINDOW_LED, GPIO_PIN_SET);
 		handle_alarm();
+		reset_air_conditioning();
 	} else {
 		WRITE_PIN(SHOPWINDOW_LED, GPIO_PIN_RESET);
+		handle_air_conditioning(datetime.season, programmed_temp, temp);
 		reset_alarm();
 	}
 }
@@ -222,10 +235,7 @@ uint8_t info_loop(void){
 // CLOCK EDIT
 
 	// CLOCK EDIT STATE VARIABLES
-static uint8_t exit = 0;
-static uint8_t col_selection = 0;
-static uint8_t time_buffer[6] = {0};
-static App_State_t selection = DATE_EDIT;
+static App_State_t clock_e_selection = DATE_EDIT;
 
 	// CLOCK EDIT STATE FUNCTIONS
 void clock_e_setup(void){
@@ -242,10 +252,10 @@ void clock_e_setup(void){
 	lcd_put_cur(1, 0);
 	lcd_send_string("   FECHA   HORA ");
 
-	if(selection == TIME_EDIT){
+	if(clock_e_selection == TIME_EDIT){
 		lcd_put_cur(1, 9);
 		lcd_send_data('*');
-	}else if(selection == DATE_EDIT){
+	}else if(clock_e_selection == DATE_EDIT){
 		lcd_put_cur(1, 1);
 		lcd_send_data('*');
 	}
@@ -261,7 +271,7 @@ uint8_t clock_e_loop(void){
 
 	//ENTER
 	if(key_buffer == 16){
-		state = selection;
+		state = clock_e_selection;
 		return 1;
 	}
 
@@ -269,14 +279,14 @@ uint8_t clock_e_loop(void){
 	if(key_buffer == 12){
 		timer = HAL_GetTick();
 
-		if(selection == DATE_EDIT){
-			selection = TIME_EDIT;
+		if(clock_e_selection == DATE_EDIT){
+			clock_e_selection = TIME_EDIT;
 			lcd_put_cur(1, 9);
 			lcd_send_data('*');
 			lcd_put_cur(1, 1);
 			lcd_send_data(' ');
-		}else if(selection == TIME_EDIT){
-			selection = DATE_EDIT;
+		}else if(clock_e_selection == TIME_EDIT){
+			clock_e_selection = DATE_EDIT;
 			lcd_put_cur(1, 9);
 			lcd_send_data(' ');
 			lcd_put_cur(1, 1);
@@ -287,7 +297,7 @@ uint8_t clock_e_loop(void){
 	return 0;
 }
 
-static uint8_t edition_mode(void);
+static uint8_t edition_mode(uint8_t digits, const uint8_t* cursor_map);
 
 void time_edit_setup(void){
 	exit = 0;
@@ -320,8 +330,8 @@ void time_edit_setup(void){
 
 uint8_t time_edit_loop(void){
 
-	exit = edition_mode();
-
+	exit = edition_mode(6, cursor_time_full);
+	state = CLOCK_EDIT;
 	//ENTER
 	if(key_buffer == 16){
 
@@ -330,7 +340,6 @@ uint8_t time_edit_loop(void){
 				time_buffer[2] * 10 + time_buffer[3],
 				time_buffer[4] * 10 + time_buffer[5]
 		);
-		state = CLOCK_EDIT;
 		return 1;
 	}
 
@@ -366,7 +375,8 @@ void date_edit_setup(void){
 
 uint8_t date_edit_loop(void){
 
-	exit = edition_mode();
+	exit = edition_mode(6, cursor_time_full);
+	state = CLOCK_EDIT;
 	//ENTER
 	if(key_buffer == 16){
 
@@ -375,74 +385,253 @@ uint8_t date_edit_loop(void){
 				time_buffer[2] * 10 + time_buffer[3],
 				time_buffer[4] * 10 + time_buffer[5]
 		);
-		state = CLOCK_EDIT;
 		return 1;
 	}
 
 	return exit;
 }
 
-static uint8_t edition_mode(void){
-	//ESCAPE AND TIMEOUT
-	if(key_buffer == 15 || HAL_GetTick() - timer > EXTRA_LONG_DELAY){
-		state = CLOCK_EDIT;
-		return 1;
-	}
+static uint8_t edition_mode(uint8_t digits, const uint8_t* cursor_map) {
+    // ESCAPE AND TIMEOUT
+    if (key_buffer == 15 || HAL_GetTick() - timer > EXTRA_LONG_DELAY) {
+        return 1;
+    }
 
-	//MOVE CURSOR RIGHT AND LEFT WITH ROLLOVER
-	if(key_buffer == 11) {col_selection = (col_selection + 1) % 6; timer = HAL_GetTick();}
-	if(key_buffer == 12) {col_selection = (col_selection - 1 + 6) % 6; timer = HAL_GetTick();}
+    // MOVE CURSOR RIGHT AND LEFT WITH ROLLOVER
+    if (key_buffer == 11) { // move right
+        col_selection = (col_selection + 1) % digits;
+        timer = HAL_GetTick();
+    }
+    if (key_buffer == 12) { // move left
+        col_selection = (col_selection + digits - 1) % digits;
+        timer = HAL_GetTick();
+    }
 
-	//POSITION THE CURSOR ON THE CORRESPONDING DISPLAY COLUMN
-	if(col_selection == 2 || col_selection == 3) lcd_put_cur(1, col_selection + 1);
-	else if (col_selection >= 4) lcd_put_cur(1, col_selection + 2);
-	else lcd_put_cur(1, col_selection);
+    // POSITION THE CURSOR using map
+    lcd_put_cur(1, cursor_map[col_selection]);
 
-	//INSERT NUMBER KEY
-	if(key_buffer > 0 && key_buffer <= 10){
-		timer = HAL_GetTick(); //RESET TIMER ON USER INPUT
-		if(key_buffer == 10) key_buffer = 0;
+    // INSERT NUMBER KEY
+    if (key_buffer > 0 && key_buffer <= 10) {
+        timer = HAL_GetTick(); // reset timeout on input
+        if (key_buffer == 10) key_buffer = 0; // '0' key
 
-		time_buffer[col_selection] = key_buffer;
-		sprintf(string_buffer, "%1d", key_buffer);
-		lcd_send_string(string_buffer);
-		col_selection = (col_selection + 1) % 6;
-	}
+        time_buffer[col_selection] = key_buffer;
+        sprintf(string_buffer, "%1d", key_buffer);
+        lcd_send_string(string_buffer);
+        col_selection = (col_selection + 1) % digits;
+    }
 
-	return 0;
+    return 0;
 }
+
 
 // TEMPERATURE EDIT STATE FUNCTIONS
 
 void temp_e_setup(void){
+	exit = 0;
 	timer = HAL_GetTick();
+	col_selection = 0;
+
+	time_buffer[0] = programmed_temp / 10;
+	time_buffer[1] = programmed_temp % 10;
+
+	lcd_put_cur(0, 0);
+	lcd_send_string(" A:   B:   #:ENT");
+	lcd_put_cur(0, 4);
+	send_lcd_ASCII(0x7E); //->
+	lcd_put_cur(0, 9);
+	send_lcd_ASCII(0x7F); //<-
+
+	lcd_put_cur(1, 0);
+	sprintf(string_buffer, "%02u TEMP C       ", programmed_temp);
+	lcd_send_string(string_buffer);
+
+	lcd_send_cmd(CUR_ON_BLINK_ON);
 }
 
 uint8_t temp_e_loop(void){
-	//ESCAPE AND TIMEOUT
-	if(key_buffer == 15 || HAL_GetTick() - timer > EXTRA_LONG_DELAY){
-		state = IDLE;
+	static uint8_t temp_temperature = 50;
+	exit = edition_mode(2, cursor_temperature);
+	state = IDLE;
+	//ENTER
+	if(key_buffer == 16){
+
+		temp_temperature = time_buffer[0] * 10 + time_buffer[1];
+
+		if(temp_temperature <= 40){
+			programmed_temp = temp_temperature;
+			status_buffer = CLOCK_OK;
+			return 1;
+		}
+
+		status_buffer = CLOCK_CRITICAL_ERROR;
 		return 1;
 	}
 
-
-	return 0;
+	return exit;
 }
 
 //SHOPWINDOW EDIT STATE FUNCTIONS
 
+static App_State_t shopwindow_e_selection = SHOPWINDOW_START_EDIT;
+
 void shopwindow_e_setup(void){
+	lcd_send_cmd(CUR_OFF_BLINK_OFF);
 	timer = HAL_GetTick();
+
+	lcd_put_cur(0, 0);
+	lcd_send_string(" VIDRIERA   D:  ");
+	lcd_put_cur(0, 14);
+	send_lcd_ASCII(0x7F); // <-
+	lcd_put_cur(0, 15);
+	send_lcd_ASCII(0x7E); // ->
+
+	lcd_put_cur(1, 0);
+	lcd_send_string("  INICIO   FINAL");
+
+	if(shopwindow_e_selection == SHOPWINDOW_START_EDIT){
+		lcd_put_cur(1, 0);
+		lcd_send_data('*');
+	}else if(shopwindow_e_selection == SHOPWINDOW_END_EDIT){
+		lcd_put_cur(1, 9);
+		lcd_send_data('*');
+	}
 }
 
 uint8_t shopwindow_e_loop(void){
+
 	//ESCAPE AND TIMEOUT
 	if(key_buffer == 15 || HAL_GetTick() - timer > EXTRA_LONG_DELAY){
 		state = IDLE;
 		return 1;
 	}
 
+	//ENTER
+	if(key_buffer == 16){
+		state = shopwindow_e_selection;
+		return 1;
+	}
+
+	//SELECTION TOGGLE
+	if(key_buffer == 14){
+		timer = HAL_GetTick();
+
+		if(shopwindow_e_selection == SHOPWINDOW_START_EDIT){
+			shopwindow_e_selection = SHOPWINDOW_END_EDIT;
+			lcd_put_cur(1, 9);
+			lcd_send_data('*');
+			lcd_put_cur(1, 0);
+			lcd_send_data(' ');
+		}else if(shopwindow_e_selection == SHOPWINDOW_END_EDIT){
+			shopwindow_e_selection = SHOPWINDOW_START_EDIT;
+			lcd_put_cur(1, 9);
+			lcd_send_data(' ');
+			lcd_put_cur(1, 0);
+			lcd_send_data('*');
+		}
+	}
+
 	return 0;
+}
+
+void shopwindow_start_setup(void){
+	exit = 0;
+	timer = HAL_GetTick();
+	col_selection = 0;
+
+	time_buffer[0] = hour_start / 10;
+	time_buffer[1] = hour_start % 10;
+	time_buffer[2] = minutes_start / 10;
+	time_buffer[3] = minutes_start % 10;
+
+	lcd_put_cur(0, 0);
+	lcd_send_string(" A:   B:   #:ENT");
+	lcd_put_cur(0, 4);
+	send_lcd_ASCII(0x7E); //->
+	lcd_put_cur(0, 9);
+	send_lcd_ASCII(0x7F); //<-
+
+	lcd_put_cur(1, 0);
+	lcd_print_time(hour_start, minutes_start);
+	lcd_send_string("       (IN)");
+
+	lcd_send_cmd(CUR_ON_BLINK_ON);
+}
+
+uint8_t shopwindow_start_loop(void){
+	static uint8_t temp_hour = 24;
+	static uint8_t temp_minutes = 61;
+
+	exit = edition_mode(4, cursor_time_short);
+	state = SHOPWINDOW_EDIT;
+	//ENTER
+	if(key_buffer == 16){
+
+		temp_hour = time_buffer[0] * 10 + time_buffer[1];
+		temp_minutes = time_buffer[2] * 10 + time_buffer[3];
+
+		if(temp_hour < 24 && temp_minutes < 60){
+			hour_start = temp_hour;
+			minutes_start = temp_minutes;
+			status_buffer = CLOCK_OK;
+			return 1;
+		}
+		if(temp_hour > 23) status_buffer = CLOCK_ERROR_INVALID_HOUR;
+		if(temp_minutes > 59) status_buffer = CLOCK_ERROR_INVALID_MINUTE;
+		return 1;
+	}
+
+	return exit;
+}
+
+void shopwindow_end_setup(void){
+	exit = 0;
+	timer = HAL_GetTick();
+	col_selection = 0;
+
+	time_buffer[0] = hour_end / 10;
+	time_buffer[1] = hour_end % 10;
+	time_buffer[2] = minutes_end / 10;
+	time_buffer[3] = minutes_end % 10;
+
+	lcd_put_cur(0, 0);
+	lcd_send_string(" A:   B:   #:ENT");
+	lcd_put_cur(0, 4);
+	send_lcd_ASCII(0x7E); //->
+	lcd_put_cur(0, 9);
+	send_lcd_ASCII(0x7F); //<-
+
+	lcd_put_cur(1, 0);
+	lcd_print_time(hour_end, minutes_end);
+	lcd_send_string("      (FIN)");
+
+	lcd_send_cmd(CUR_ON_BLINK_ON);
+}
+
+uint8_t shopwindow_end_loop(void){
+	static uint8_t temp_hour = 24;
+	static uint8_t temp_minutes = 61;
+
+	exit = edition_mode(4, cursor_time_short);
+	state = SHOPWINDOW_EDIT;
+	//ENTER
+	if(key_buffer == 16){
+
+		temp_hour = time_buffer[0] * 10 + time_buffer[1];
+		temp_minutes = time_buffer[2] * 10 + time_buffer[3];
+
+		if(temp_hour < 24 && temp_minutes < 60){
+			hour_end = temp_hour;
+			minutes_end = temp_minutes;
+			status_buffer = CLOCK_OK;
+			return 1;
+		}
+		if(temp_hour > 23) status_buffer = CLOCK_ERROR_INVALID_HOUR;
+		if(temp_minutes > 59) status_buffer = CLOCK_ERROR_INVALID_MINUTE;
+		return 1;
+	}
+
+	return exit;
 }
 
 

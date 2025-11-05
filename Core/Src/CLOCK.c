@@ -117,7 +117,7 @@ char * clock_error_string(Clock_Status_t code){
 	case CLOCK_ERROR_INVALID_DATE:		return "FECHA INVALIDA  ";
 	case CLOCK_ERROR_INVALID_MONTH:		return "MES INVALIDO    ";
 	case CLOCK_ERROR_INVALID_YEAR:		return "ANIO INVALIDO   ";
-	case CLOCK_CRITICAL_ERROR:			return "ERROR CRITICO   ";
+	case CLOCK_CRITICAL_ERROR:			return "CAMBIO INVALIDO ";
 	case REST:
 	}
 	return "";
