@@ -2,17 +2,16 @@
 
 App_State_t state = IDLE;
 
+//Input Variables
 static uint8_t key_buffer;
 static char string_buffer[30];
 
-// EDITOR VARIABLES
-static const uint8_t cursor_time_full[6] = {0, 1, 3, 4, 6, 7};
-static const uint8_t cursor_time_short[4] = {0, 1, 3, 4};
-static const uint8_t cursor_temperature[2] = {0, 1};
+//Editor Variables
+static const uint8_t cursor_map[6] = {0, 1, 3, 4, 6, 7};
 
-static uint8_t exit = 0;
+static uint8_t exit_edit_mode = 0;
 static uint8_t col_selection = 0;
-static uint8_t time_buffer[6] = {0};
+static uint8_t input_buffer[6] = {0};
 
 //Temperature reading variables
 static float temp_buffer[10] = {0};
@@ -44,47 +43,9 @@ static StateFunction state_functions[] = {
 		{shopwindow_end_setup, shopwindow_end_loop}
 };
 
-static uint8_t shopwindowState(void) {
-    uint16_t now   = (uint16_t)datetime.hours * 60u + (uint16_t)datetime.minutes;
-    uint16_t start = (uint16_t)hour_start   * 60u + (uint16_t)minutes_start;
-    uint16_t end   = (uint16_t)hour_end     * 60u + (uint16_t)minutes_end;
-
-    if (start == end) {
-        // interpret equal start and end as "always on"
-        return 1;
-    }
-
-    if (start < end) {
-        // simple daytime range, e.g. 09:00 - 17:00
-    	if (now >= start && now < end) return 1;
-    	else return 0;
-    } else {
-        // overnight range, e.g. 23:30 - 07:30
-    	if (now >= start || now < end) return 1;
-    	else return 0;
-    }
-}
-
-// Avoid SprintF formating for float values because it uses a lot of memory
-static void format_temp(float temp, char* buffer) {
-    int whole = (int)temp;
-    int decimal = (int)((temp - whole) * 10);
-    buffer[0] = (whole / 10) + '0';
-    buffer[1] = (whole % 10) + '0';
-    buffer[2] = '.';
-    buffer[3] = decimal + '0';
-    buffer[4] = '\0';
-}
-
-static void poll_temp_sensor() {
-	static float temp_sum = 0;
-    float current = poll_sensor();
-    temp_sum -= temp_buffer[temp_index];
-    temp_buffer[temp_index] = current;
-    temp_sum += current;
-    temp_index = (temp_index + 1) % 10;
-    temp = temp_sum / 10;
-}
+static uint8_t shopwindowState(void);
+static void format_temp(float temp, char* buffer);
+static void average_temp_sensor(void);
 
 /*
  * @brief Updates system variables and states such as the
@@ -92,7 +53,7 @@ static void poll_temp_sensor() {
  * */
 static void system_update(void){
 	//Moving Average Temperature reading logic
-	poll_temp_sensor();
+	average_temp_sensor();
 
 	//Update system clock
 	clock_update_datetime();
@@ -300,16 +261,16 @@ uint8_t clock_e_loop(void){
 static uint8_t edition_mode(uint8_t digits, const uint8_t* cursor_map);
 
 void time_edit_setup(void){
-	exit = 0;
+	exit_edit_mode = 0;
 	timer = HAL_GetTick();
 	col_selection = 0;
 
-	time_buffer[0] = datetime.hours / 10;
-	time_buffer[1] = datetime.hours % 10;
-	time_buffer[2] = datetime.minutes / 10;
-	time_buffer[3] = datetime.minutes % 10;
-	time_buffer[4] = datetime.seconds / 10;
-	time_buffer[5] = datetime.seconds % 10;
+	input_buffer[0] = datetime.hours / 10;
+	input_buffer[1] = datetime.hours % 10;
+	input_buffer[2] = datetime.minutes / 10;
+	input_buffer[3] = datetime.minutes % 10;
+	input_buffer[4] = datetime.seconds / 10;
+	input_buffer[5] = datetime.seconds % 10;
 
 	lcd_put_cur(0, 0);
 	lcd_send_string(" A:   B:   #:ENT");
@@ -330,33 +291,33 @@ void time_edit_setup(void){
 
 uint8_t time_edit_loop(void){
 
-	exit = edition_mode(6, cursor_time_full);
+	exit_edit_mode = edition_mode(6, cursor_map);
 	state = CLOCK_EDIT;
 	//ENTER
 	if(key_buffer == 16){
 
 		status_buffer = clock_set_time(
-				time_buffer[0] * 10 + time_buffer[1],
-				time_buffer[2] * 10 + time_buffer[3],
-				time_buffer[4] * 10 + time_buffer[5]
+				input_buffer[0] * 10 + input_buffer[1],
+				input_buffer[2] * 10 + input_buffer[3],
+				input_buffer[4] * 10 + input_buffer[5]
 		);
 		return 1;
 	}
 
-	return exit;
+	return exit_edit_mode;
 }
 
 void date_edit_setup(void){
-	exit = 0;
+	exit_edit_mode = 0;
 	timer = HAL_GetTick();
 	col_selection = 0;
 
-	time_buffer[0] = datetime.date / 10;
-	time_buffer[1] = datetime.date % 10;
-	time_buffer[2] = datetime.month / 10;
-	time_buffer[3] = datetime.month % 10;
-	time_buffer[4] = datetime.year / 10;
-	time_buffer[5] = datetime.year % 10;
+	input_buffer[0] = datetime.date / 10;
+	input_buffer[1] = datetime.date % 10;
+	input_buffer[2] = datetime.month / 10;
+	input_buffer[3] = datetime.month % 10;
+	input_buffer[4] = datetime.year / 10;
+	input_buffer[5] = datetime.year % 10;
 
 	lcd_put_cur(0, 0);
 	lcd_send_string(" A:   B:   #:ENT");
@@ -375,20 +336,20 @@ void date_edit_setup(void){
 
 uint8_t date_edit_loop(void){
 
-	exit = edition_mode(6, cursor_time_full);
+	exit_edit_mode = edition_mode(6, cursor_map);
 	state = CLOCK_EDIT;
 	//ENTER
 	if(key_buffer == 16){
 
 		status_buffer = clock_set_date(
-				time_buffer[0] * 10 + time_buffer[1],
-				time_buffer[2] * 10 + time_buffer[3],
-				time_buffer[4] * 10 + time_buffer[5]
+				input_buffer[0] * 10 + input_buffer[1],
+				input_buffer[2] * 10 + input_buffer[3],
+				input_buffer[4] * 10 + input_buffer[5]
 		);
 		return 1;
 	}
 
-	return exit;
+	return exit_edit_mode;
 }
 
 static uint8_t edition_mode(uint8_t digits, const uint8_t* cursor_map) {
@@ -415,7 +376,7 @@ static uint8_t edition_mode(uint8_t digits, const uint8_t* cursor_map) {
         timer = HAL_GetTick(); // reset timeout on input
         if (key_buffer == 10) key_buffer = 0; // '0' key
 
-        time_buffer[col_selection] = key_buffer;
+        input_buffer[col_selection] = key_buffer;
         sprintf(string_buffer, "%1d", key_buffer);
         lcd_send_string(string_buffer);
         col_selection = (col_selection + 1) % digits;
@@ -428,12 +389,12 @@ static uint8_t edition_mode(uint8_t digits, const uint8_t* cursor_map) {
 // TEMPERATURE EDIT STATE FUNCTIONS
 
 void temp_e_setup(void){
-	exit = 0;
+	exit_edit_mode = 0;
 	timer = HAL_GetTick();
 	col_selection = 0;
 
-	time_buffer[0] = programmed_temp / 10;
-	time_buffer[1] = programmed_temp % 10;
+	input_buffer[0] = programmed_temp / 10;
+	input_buffer[1] = programmed_temp % 10;
 
 	lcd_put_cur(0, 0);
 	lcd_send_string(" A:   B:   #:ENT");
@@ -451,12 +412,12 @@ void temp_e_setup(void){
 
 uint8_t temp_e_loop(void){
 	static uint8_t temp_temperature = 50;
-	exit = edition_mode(2, cursor_temperature);
+	exit_edit_mode = edition_mode(2, cursor_map);
 	state = IDLE;
 	//ENTER
 	if(key_buffer == 16){
 
-		temp_temperature = time_buffer[0] * 10 + time_buffer[1];
+		temp_temperature = input_buffer[0] * 10 + input_buffer[1];
 
 		if(temp_temperature <= 40){
 			programmed_temp = temp_temperature;
@@ -468,7 +429,7 @@ uint8_t temp_e_loop(void){
 		return 1;
 	}
 
-	return exit;
+	return exit_edit_mode;
 }
 
 //SHOPWINDOW EDIT STATE FUNCTIONS
@@ -535,14 +496,14 @@ uint8_t shopwindow_e_loop(void){
 }
 
 void shopwindow_start_setup(void){
-	exit = 0;
+	exit_edit_mode = 0;
 	timer = HAL_GetTick();
 	col_selection = 0;
 
-	time_buffer[0] = hour_start / 10;
-	time_buffer[1] = hour_start % 10;
-	time_buffer[2] = minutes_start / 10;
-	time_buffer[3] = minutes_start % 10;
+	input_buffer[0] = hour_start / 10;
+	input_buffer[1] = hour_start % 10;
+	input_buffer[2] = minutes_start / 10;
+	input_buffer[3] = minutes_start % 10;
 
 	lcd_put_cur(0, 0);
 	lcd_send_string(" A:   B:   #:ENT");
@@ -562,13 +523,13 @@ uint8_t shopwindow_start_loop(void){
 	static uint8_t temp_hour = 24;
 	static uint8_t temp_minutes = 61;
 
-	exit = edition_mode(4, cursor_time_short);
+	exit_edit_mode = edition_mode(4, cursor_map);
 	state = SHOPWINDOW_EDIT;
 	//ENTER
 	if(key_buffer == 16){
 
-		temp_hour = time_buffer[0] * 10 + time_buffer[1];
-		temp_minutes = time_buffer[2] * 10 + time_buffer[3];
+		temp_hour = input_buffer[0] * 10 + input_buffer[1];
+		temp_minutes = input_buffer[2] * 10 + input_buffer[3];
 
 		if(temp_hour < 24 && temp_minutes < 60){
 			hour_start = temp_hour;
@@ -581,18 +542,18 @@ uint8_t shopwindow_start_loop(void){
 		return 1;
 	}
 
-	return exit;
+	return exit_edit_mode;
 }
 
 void shopwindow_end_setup(void){
-	exit = 0;
+	exit_edit_mode = 0;
 	timer = HAL_GetTick();
 	col_selection = 0;
 
-	time_buffer[0] = hour_end / 10;
-	time_buffer[1] = hour_end % 10;
-	time_buffer[2] = minutes_end / 10;
-	time_buffer[3] = minutes_end % 10;
+	input_buffer[0] = hour_end / 10;
+	input_buffer[1] = hour_end % 10;
+	input_buffer[2] = minutes_end / 10;
+	input_buffer[3] = minutes_end % 10;
 
 	lcd_put_cur(0, 0);
 	lcd_send_string(" A:   B:   #:ENT");
@@ -612,13 +573,13 @@ uint8_t shopwindow_end_loop(void){
 	static uint8_t temp_hour = 24;
 	static uint8_t temp_minutes = 61;
 
-	exit = edition_mode(4, cursor_time_short);
+	exit_edit_mode = edition_mode(4, cursor_map);
 	state = SHOPWINDOW_EDIT;
 	//ENTER
 	if(key_buffer == 16){
 
-		temp_hour = time_buffer[0] * 10 + time_buffer[1];
-		temp_minutes = time_buffer[2] * 10 + time_buffer[3];
+		temp_hour = input_buffer[0] * 10 + input_buffer[1];
+		temp_minutes = input_buffer[2] * 10 + input_buffer[3];
 
 		if(temp_hour < 24 && temp_minutes < 60){
 			hour_end = temp_hour;
@@ -631,7 +592,48 @@ uint8_t shopwindow_end_loop(void){
 		return 1;
 	}
 
-	return exit;
+	return exit_edit_mode;
 }
 
+// STATIC HELPER FUNCTIONS
 
+static uint8_t shopwindowState(void) {
+    uint16_t now   = (uint16_t)datetime.hours * 60u + (uint16_t)datetime.minutes;
+    uint16_t start = (uint16_t)hour_start   * 60u + (uint16_t)minutes_start;
+    uint16_t end   = (uint16_t)hour_end     * 60u + (uint16_t)minutes_end;
+
+    if (start == end) {
+        // interpret equal start and end as "always on"
+        return 1;
+    }
+
+    if (start < end) {
+        // simple daytime range, e.g. 09:00 - 17:00
+    	if (now >= start && now < end) return 1;
+    	else return 0;
+    } else {
+        // overnight range, e.g. 23:30 - 07:30
+    	if (now >= start || now < end) return 1;
+    	else return 0;
+    }
+}
+
+static void format_temp(float temp, char* buffer) {
+    int whole = (int)temp;
+    int decimal = (int)((temp - whole) * 10);
+    buffer[0] = (whole / 10) + '0';
+    buffer[1] = (whole % 10) + '0';
+    buffer[2] = '.';
+    buffer[3] = decimal + '0';
+    buffer[4] = '\0';
+}
+
+static void average_temp_sensor(void) {
+	static float temp_sum = 0;
+    float current = poll_sensor();
+    temp_sum -= temp_buffer[temp_index];
+    temp_buffer[temp_index] = current;
+    temp_sum += current;
+    temp_index = (temp_index + 1) % 10;
+    temp = temp_sum / 10;
+}
