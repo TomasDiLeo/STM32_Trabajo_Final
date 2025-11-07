@@ -17,11 +17,11 @@
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
+#include <system.h>
 #include "main.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "states.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
