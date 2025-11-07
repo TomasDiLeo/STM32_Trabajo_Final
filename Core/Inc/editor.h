@@ -2,6 +2,7 @@
 #define EDITOR_H
 
 #include "stm32f1xx_hal.h"
+#include "Drivers/LCD_NC.h"
 
 #define EDITOR_TIMEOUT 15000
 
@@ -31,6 +32,8 @@ extern const uint8_t cursor_map[6];
 
 void editor_setup(uint8_t *initial_values, uint8_t size, Editor *editor);
 uint8_t editor_loop(uint8_t pressed_key, Editor *editor);
-uint8_t get_number(uint8_t position, Editor *editor);
+
+
+
 
 #endif /* EDITOR_H */

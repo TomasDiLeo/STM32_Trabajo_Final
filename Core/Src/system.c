@@ -258,21 +258,10 @@ uint8_t clock_e_loop(void) {
 	//TIME EDIT
 
 void time_title(){
-	lcd_put_cur(0, 0);
-	lcd_send_string(" A:   B:   #:ENT");
-	lcd_put_cur(0, 4);
-	send_lcd_ASCII(0x7E); //->
-	lcd_put_cur(0, 9);
-	send_lcd_ASCII(0x7F); //<-
+	editor_title();
 
 	lcd_put_cur(1, 0);
 	sprintf(string_buffer, "%02u:%02u:%02u  (HORA)", datetime.hours, datetime.minutes, datetime.seconds);
-	lcd_send_string(string_buffer);
-}
-
-void time_display_update(uint8_t position, uint8_t value){
-	lcd_put_cur(1, cursor_map[position]);
-	sprintf(string_buffer, "%1d", value);
 	lcd_send_string(string_buffer);
 }
 
@@ -285,7 +274,7 @@ uint8_t time_save(uint8_t *buffer){
 
 const EditorDisplay time_display = {
 		.message = time_title,
-		.on_update = time_display_update
+		.on_update = display_update
 };
 
 Editor time_editor = {
@@ -324,21 +313,10 @@ uint8_t time_edit_loop(void) {
 	//DATE EDIT
 
 void date_title(){
-	lcd_put_cur(0, 0);
-	lcd_send_string(" A:   B:   #:ENT");
-	lcd_put_cur(0, 4);
-	send_lcd_ASCII(0x7E); //->
-	lcd_put_cur(0, 9);
-	send_lcd_ASCII(0x7F); //<-
+	editor_title();
 
 	lcd_put_cur(1, 0);
 	sprintf(string_buffer, "%02u/%02u/%02u (FECHA)", datetime.date, datetime.month, datetime.year);
-	lcd_send_string(string_buffer);
-}
-
-void date_display_update(uint8_t position, uint8_t value){
-	lcd_put_cur(1, cursor_map[position]);
-	sprintf(string_buffer, "%1d", value);
 	lcd_send_string(string_buffer);
 }
 
@@ -351,7 +329,7 @@ uint8_t date_save(uint8_t *buffer){
 
 const EditorDisplay date_display = {
 		.message = date_title,
-		.on_update = date_display_update
+		.on_update = display_update
 };
 
 Editor date_editor = {
@@ -388,23 +366,13 @@ uint8_t date_edit_loop(void) {
 // TEMPERATURE EDIT STATE FUNCTIONS
 
 void temp_title(){
-	lcd_put_cur(0, 0);
-	lcd_send_string(" A:   B:   #:ENT");
-	lcd_put_cur(0, 4);
-	send_lcd_ASCII(0x7E); //->
-	lcd_put_cur(0, 9);
-	send_lcd_ASCII(0x7F); //<-
+	editor_title();
 
 	lcd_put_cur(1, 0);
 	sprintf(string_buffer, "%02u TEMP C       ", programmed_temp);
 	lcd_send_string(string_buffer);
 }
 
-void temp_display_update(uint8_t position, uint8_t value){
-	lcd_put_cur(1, cursor_map[position]);
-	sprintf(string_buffer, "%1d", value);
-	lcd_send_string(string_buffer);
-}
 
 uint8_t temp_save(uint8_t *buffer){
 	uint8_t temp_temperature = buffer[0] * 10 + buffer[1];
@@ -417,7 +385,7 @@ uint8_t temp_save(uint8_t *buffer){
 
 const EditorDisplay temp_display = {
 		.message = temp_title,
-		.on_update = temp_display_update
+		.on_update = display_update
 };
 
 Editor temp_editor = {
@@ -514,21 +482,10 @@ uint8_t shopwindow_e_loop(void) {
 // SHOPWINDOW START EDIT
 
 void sstart_title(){
-	lcd_put_cur(0, 0);
-	lcd_send_string(" A:   B:   #:ENT");
-	lcd_put_cur(0, 4);
-	send_lcd_ASCII(0x7E); //->
-	lcd_put_cur(0, 9);
-	send_lcd_ASCII(0x7F); //<-
+	editor_title();
 
 	lcd_put_cur(1, 0);
 	sprintf(string_buffer, "%02u:%02u   (INICIO)", hour_start, minutes_start);
-	lcd_send_string(string_buffer);
-}
-
-void sstart_display_update(uint8_t position, uint8_t value){
-	lcd_put_cur(1, cursor_map[position]);
-	sprintf(string_buffer, "%1d", value);
 	lcd_send_string(string_buffer);
 }
 
@@ -536,20 +493,12 @@ uint8_t sstart_save(uint8_t *buffer){
 	uint8_t temp_hour = buffer[0] * 10 + buffer[1];
 	uint8_t temp_minutes = buffer[2] * 10 + buffer[3];
 
-	if (temp_hour < 24 && temp_minutes < 60) {
-		hour_start = temp_hour;
-		minutes_start = temp_minutes;
-		return CLOCK_OK;
-	}
-	if (temp_hour > 23) return CLOCK_ERROR_INVALID_HOUR;
-	if (temp_minutes > 59) return CLOCK_ERROR_INVALID_MINUTE;
-
-	return CLOCK_CRITICAL_ERROR;
+	return set_validate_time(temp_hour, temp_minutes, &hour_start, &minutes_start);
 }
 
 const EditorDisplay sstart_display = {
 		.message = sstart_title,
-		.on_update = sstart_display_update
+		.on_update = display_update
 };
 
 Editor sstart_editor = {
@@ -584,21 +533,10 @@ uint8_t shopwindow_start_loop(void) {
 //SHOPWINDOW END
 
 void send_title(){
-	lcd_put_cur(0, 0);
-	lcd_send_string(" A:   B:   #:ENT");
-	lcd_put_cur(0, 4);
-	send_lcd_ASCII(0x7E); //->
-	lcd_put_cur(0, 9);
-	send_lcd_ASCII(0x7F); //<-
+	editor_title();
 
 	lcd_put_cur(1, 0);
 	sprintf(string_buffer, "%02u:%02u    (FINAL)", hour_end, minutes_end);
-	lcd_send_string(string_buffer);
-}
-
-void send_display_update(uint8_t position, uint8_t value){
-	lcd_put_cur(1, cursor_map[position]);
-	sprintf(string_buffer, "%1d", value);
 	lcd_send_string(string_buffer);
 }
 
@@ -606,20 +544,12 @@ uint8_t send_save(uint8_t *buffer){
 	uint8_t temp_hour = buffer[0] * 10 + buffer[1];
 	uint8_t temp_minutes = buffer[2] * 10 + buffer[3];
 
-	if (temp_hour < 24 && temp_minutes < 60) {
-		hour_end = temp_hour;
-		minutes_end = temp_minutes;
-		return CLOCK_OK;
-	}
-	if (temp_hour > 23) return CLOCK_ERROR_INVALID_HOUR;
-	if (temp_minutes > 59) return CLOCK_ERROR_INVALID_MINUTE;
-
-	return CLOCK_CRITICAL_ERROR;
+	return set_validate_time(temp_hour, temp_minutes, &hour_end, &minutes_end);
 }
 
 const EditorDisplay send_display = {
 		.message = send_title,
-		.on_update = send_display_update
+		.on_update = display_update
 };
 
 Editor send_editor = {
@@ -697,4 +627,16 @@ static void average_temp_sensor(void) {
 
 	temp_index = (temp_index + 1) % 10;
 	temp = temp_sum / 10;
+}
+
+static uint8_t set_validate_time(uint8_t hour, uint8_t minute, uint8_t *hour_ref, uint8_t *minute_ref){
+	if (hour < 24 && minute < 60) {
+		hour_ref = hour;
+		minute_ref = minute;
+		return CLOCK_OK;
+	}
+	if (hour > 23) return CLOCK_ERROR_INVALID_HOUR;
+	if (minute > 59) return CLOCK_ERROR_INVALID_MINUTE;
+
+	return CLOCK_CRITICAL_ERROR;
 }

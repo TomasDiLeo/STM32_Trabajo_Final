@@ -50,9 +50,21 @@ uint8_t editor_loop(uint8_t pressed_key, Editor *editor){
 	return 0;
 }
 
-uint8_t get_number(uint8_t position, Editor *editor){
-	return editor->buffer[position] * 10 + editor->buffer[position + 1];
+void editor_title(){
+	lcd_put_cur(0, 0);
+	lcd_send_string(" A:   B:   #:ENT");
+	lcd_put_cur(0, 4);
+	send_lcd_ASCII(0x7E); //->
+	lcd_put_cur(0, 9);
+	send_lcd_ASCII(0x7F); //<-
 }
+
+void display_update(){
+	lcd_put_cur(1, cursor_map[position]);
+	sprintf(string_buffer, "%1d", value);
+	lcd_send_string(string_buffer);
+}
+
 
 static void move_with_rollover(uint8_t *variable, uint8_t move_by, uint8_t rollover_digit){
 	*variable = (*variable + move_by) % rollover_digit;
