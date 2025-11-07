@@ -104,22 +104,3 @@ void lcd_clear(void) {
     HAL_Delay(2);
 }
 
-void lcd_print2d(uint8_t val) {
-    lcd_send_data((val / 10) + '0');
-    lcd_send_data((val % 10) + '0');
-}
-
-void lcd_print_date(uint8_t d, uint8_t m, uint8_t y) {
-    lcd_print2d(d);
-    lcd_send_data('/');
-    lcd_print2d(m);
-    lcd_send_data('/');
-    lcd_print2d(y);
-}
-
-void lcd_print_time(uint8_t h, uint8_t m) {
-    lcd_print2d(h);
-    lcd_send_data(':');
-    lcd_print2d(m);
-}
-

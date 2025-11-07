@@ -96,11 +96,12 @@ void idle_setup() {
 	sprintf(string_buffer, "%.7s", wd);
 	lcd_send_string(string_buffer);
 	lcd_send_data(' ');
-	lcd_print_date(datetime.date, datetime.month, datetime.year);
-	lcd_send_string("     ");
+	sprintf(string_buffer, "%02u/%02u/%02u (FECHA)", datetime.date, datetime.month, datetime.year);
+	lcd_send_string(string_buffer);
 
 	lcd_put_cur(1, 0);
-	lcd_print_time(datetime.hours, datetime.minutes);
+	sprintf(string_buffer, "%02u:%02u", datetime.hours, datetime.minutes);
+	lcd_send_string(string_buffer);
 	lcd_send_string(" Temp00.0 ");
 	lcd_send_data(datetime.season);
 }
@@ -147,7 +148,8 @@ uint8_t idle_loop(void) {
 		sprintf(string_buffer, "%.7s", wd);
 		lcd_send_string(string_buffer);
 		lcd_send_data(' ');
-		lcd_print_date(datetime.date, datetime.month, datetime.year);
+		sprintf(string_buffer, "%02u/%02u/%02u (FECHA)", datetime.date, datetime.month, datetime.year);
+		lcd_send_string(string_buffer);
 
 		lcd_put_cur(1, 15);
 		lcd_send_data(datetime.season);
@@ -158,7 +160,8 @@ uint8_t idle_loop(void) {
 	//UPDATE TIME EVERY MINUTE
 	if (last_minute != datetime.minutes) {
 		lcd_put_cur(1, 0);
-		lcd_print_time(datetime.hours, datetime.minutes);
+		sprintf(string_buffer, "%02u:%02u", datetime.hours, datetime.minutes);
+		lcd_send_string(string_buffer);
 
 		last_minute = datetime.minutes;
 	}
@@ -281,11 +284,8 @@ void time_edit_setup(void) {
 	send_lcd_ASCII(0x7F); //<-
 
 	lcd_put_cur(1, 0);
-	lcd_print_time(datetime.hours, datetime.minutes);
-	lcd_send_data(':');
-	lcd_print2d(datetime.seconds);
-	lcd_send_string("  (HORA)");
-	lcd_send_string("          ");
+	sprintf(string_buffer, "%2u:%2u:%2u  (HORA)", datetime.hours, datetime.minutes, datetime.seconds);
+	lcd_send_string(string_buffer);
 
 	lcd_send_cmd(CUR_ON_BLINK_ON);
 }
@@ -326,9 +326,8 @@ void date_edit_setup(void) {
 	send_lcd_ASCII(0x7F); //<-
 
 	lcd_put_cur(1, 0);
-	lcd_print_date(datetime.date, datetime.month, datetime.year);
-	lcd_send_string(" (FECHA)");
-	lcd_send_string("          ");
+	sprintf(string_buffer, "%02u/%02u/%02u (FECHA)", datetime.date, datetime.month, datetime.year);
+	lcd_send_string(string_buffer);
 
 	lcd_send_cmd(CUR_ON_BLINK_ON);
 }
@@ -510,8 +509,8 @@ void shopwindow_start_setup(void) {
 	send_lcd_ASCII(0x7F); //<-
 
 	lcd_put_cur(1, 0);
-	lcd_print_time(hour_start, minutes_start);
-	lcd_send_string("       (IN)");
+	sprintf(string_buffer, "%02u:%02u   (INICIO)", hour_start, minutes_start);
+	lcd_send_string(string_buffer);
 
 	lcd_send_cmd(CUR_ON_BLINK_ON);
 }
@@ -562,8 +561,8 @@ void shopwindow_end_setup(void) {
 	send_lcd_ASCII(0x7F); //<-
 
 	lcd_put_cur(1, 0);
-	lcd_print_time(hour_end, minutes_end);
-	lcd_send_string("      (FIN)");
+	sprintf(string_buffer, "%02u:%02u    (FINAL)", hour_end, minutes_end);
+	lcd_send_string(string_buffer);
 
 	lcd_send_cmd(CUR_ON_BLINK_ON);
 }
