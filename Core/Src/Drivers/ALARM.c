@@ -1,4 +1,4 @@
-#include <ALARM.h>
+#include <Drivers/ALARM.h>
 
 static Sensor high_priority_sensor;
 static Sensor low_priority_sensor;

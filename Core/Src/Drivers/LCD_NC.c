@@ -1,4 +1,4 @@
-#include "LCD_NC.h"
+#include "Drivers/LCD_NC.h"
 
 void lcd_init(void) {
     // 4 bit initialisation

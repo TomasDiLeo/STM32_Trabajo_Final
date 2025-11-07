@@ -1,4 +1,4 @@
-#include "TEMPERATURE.h"
+#include <Drivers/TEMPERATURE_SENSOR.h>
 
 static ADC_HandleTypeDef *hadc1_pointer;
 volatile uint32_t adc_value = 0;

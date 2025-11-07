@@ -17,12 +17,12 @@
 
 #include <stdio.h>
 #include "stm32f1xx_hal.h"
-#include "CLOCK.h"
-#include "KEYPAD.h"
-#include "LCD_NC.h"
-#include "TEMPERATURE.h"
-#include "ALARM.h"
-#include "AIR CONDITIONING.h"
+#include "Drivers/CLOCK.h"
+#include "Drivers/KEYPAD.h"
+#include "Drivers/LCD_NC.h"
+#include "Drivers/TEMPERATURE_SENSOR.h"
+#include "Drivers/ALARM.h"
+#include <Drivers/AIR_CONDITIONING.h>
 
 #define SHOPWINDOW_LED_Pin GPIO_PIN_15
 #define SHOPWINDOW_LED_GPIO_Port GPIOB
