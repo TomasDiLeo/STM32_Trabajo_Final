@@ -6,13 +6,6 @@ App_State_t state = IDLE;
 static uint8_t key_buffer;
 static char string_buffer[30];
 
-//Editor Variables
-static const uint8_t cursor_map[6] = { 0, 1, 3, 4, 6, 7 };
-
-static uint8_t exit_edit_mode = 0;
-static uint8_t col_selection = 0;
-static uint8_t input_buffer[6] = { 0 };
-
 //Temperature reading variables
 static float temp_buffer[10] = { 0 };
 static uint8_t temp_index = 0;
@@ -262,20 +255,9 @@ uint8_t clock_e_loop(void) {
 	return 0;
 }
 
-static uint8_t edition_mode(uint8_t digits, const uint8_t *cursor_map);
+	//TIME EDIT
 
-void time_edit_setup(void) {
-	exit_edit_mode = 0;
-	timer = HAL_GetTick();
-	col_selection = 0;
-
-	input_buffer[0] = datetime.hours / 10;
-	input_buffer[1] = datetime.hours % 10;
-	input_buffer[2] = datetime.minutes / 10;
-	input_buffer[3] = datetime.minutes % 10;
-	input_buffer[4] = datetime.seconds / 10;
-	input_buffer[5] = datetime.seconds % 10;
-
+void time_title(){
 	lcd_put_cur(0, 0);
 	lcd_send_string(" A:   B:   #:ENT");
 	lcd_put_cur(0, 4);
@@ -284,40 +266,64 @@ void time_edit_setup(void) {
 	send_lcd_ASCII(0x7F); //<-
 
 	lcd_put_cur(1, 0);
-	sprintf(string_buffer, "%2u:%2u:%2u  (HORA)", datetime.hours, datetime.minutes, datetime.seconds);
+	sprintf(string_buffer, "%02u:%02u:%02u  (HORA)", datetime.hours, datetime.minutes, datetime.seconds);
 	lcd_send_string(string_buffer);
+}
+
+void time_display_update(uint8_t position, uint8_t value){
+	lcd_put_cur(1, cursor_map[position]);
+	sprintf(string_buffer, "%1d", value);
+	lcd_send_string(string_buffer);
+}
+
+uint8_t time_save(uint8_t *buffer){
+	return clock_set_time(
+			buffer[0] * 10 + buffer[1],
+			buffer[2] * 10 + buffer[3],
+			buffer[4] * 10 + buffer[5]);
+}
+
+const EditorDisplay time_display = {
+		.message = time_title,
+		.on_update = time_display_update
+};
+
+Editor time_editor = {
+		.max_digits = 6,
+		.timeout_ms = 15000,
+		.on_save = time_save,
+		.display = time_display
+};
+
+void time_edit_setup(void) {
+
+	uint8_t buffer[6] = {
+			datetime.hours / 10,
+			datetime.hours % 10,
+			datetime.minutes / 10,
+			datetime.minutes % 10,
+			datetime.seconds / 10,
+			datetime.seconds % 10
+	};
+
+	editor_setup(buffer, 6, &time_editor);
+
 
 	lcd_send_cmd(CUR_ON_BLINK_ON);
+	state = CLOCK_EDIT;
 }
 
 uint8_t time_edit_loop(void) {
 
-	exit_edit_mode = edition_mode(6, cursor_map);
-	state = CLOCK_EDIT;
-	//ENTER
-	if (key_buffer == 16) {
+	status_buffer = editor_loop(key_buffer, &time_editor);
+	lcd_put_cur(1, cursor_map[time_editor.column_selection]);
 
-		status_buffer = clock_set_time(input_buffer[0] * 10 + input_buffer[1],
-				input_buffer[2] * 10 + input_buffer[3],
-				input_buffer[4] * 10 + input_buffer[5]);
-		return 1;
-	}
-
-	return exit_edit_mode;
+	return time_editor.exit;
 }
 
-void date_edit_setup(void) {
-	exit_edit_mode = 0;
-	timer = HAL_GetTick();
-	col_selection = 0;
+	//DATE EDIT
 
-	input_buffer[0] = datetime.date / 10;
-	input_buffer[1] = datetime.date % 10;
-	input_buffer[2] = datetime.month / 10;
-	input_buffer[3] = datetime.month % 10;
-	input_buffer[4] = datetime.year / 10;
-	input_buffer[5] = datetime.year % 10;
-
+void date_title(){
 	lcd_put_cur(0, 0);
 	lcd_send_string(" A:   B:   #:ENT");
 	lcd_put_cur(0, 4);
@@ -328,70 +334,60 @@ void date_edit_setup(void) {
 	lcd_put_cur(1, 0);
 	sprintf(string_buffer, "%02u/%02u/%02u (FECHA)", datetime.date, datetime.month, datetime.year);
 	lcd_send_string(string_buffer);
+}
+
+void date_display_update(uint8_t position, uint8_t value){
+	lcd_put_cur(1, cursor_map[position]);
+	sprintf(string_buffer, "%1d", value);
+	lcd_send_string(string_buffer);
+}
+
+uint8_t date_save(uint8_t *buffer){
+	return clock_set_date(
+			buffer[0] * 10 + buffer[1],
+			buffer[2] * 10 + buffer[3],
+			buffer[4] * 10 + buffer[5]);
+}
+
+const EditorDisplay date_display = {
+		.message = date_title,
+		.on_update = date_display_update
+};
+
+Editor date_editor = {
+		.max_digits = 6,
+		.timeout_ms = 15000,
+		.on_save = date_save,
+		.display = date_display
+};
+
+void date_edit_setup(void) {
+	uint8_t buffer[6] = {
+		datetime.date / 10,
+		datetime.date % 10,
+		datetime.month / 10,
+		datetime.month % 10,
+		datetime.year / 10,
+		datetime.year % 10
+	};
+
+	editor_setup(buffer, 6, &date_editor);
 
 	lcd_send_cmd(CUR_ON_BLINK_ON);
+	state = CLOCK_EDIT;
 }
 
 uint8_t date_edit_loop(void) {
 
-	exit_edit_mode = edition_mode(6, cursor_map);
-	state = CLOCK_EDIT;
-	//ENTER
-	if (key_buffer == 16) {
+	status_buffer = editor_loop(key_buffer, &date_editor);
+	lcd_put_cur(1, cursor_map[date_editor.column_selection]);
 
-		status_buffer = clock_set_date(input_buffer[0] * 10 + input_buffer[1],
-				input_buffer[2] * 10 + input_buffer[3],
-				input_buffer[4] * 10 + input_buffer[5]);
-		return 1;
-	}
-
-	return exit_edit_mode;
-}
-
-static uint8_t edition_mode(uint8_t digits, const uint8_t *cursor_map) {
-	// ESCAPE AND TIMEOUT
-	if (key_buffer == 15 || HAL_GetTick() - timer > EXTRA_LONG_DELAY) {
-		return 1;
-	}
-
-	// MOVE CURSOR RIGHT AND LEFT WITH ROLLOVER
-	if (key_buffer == 11) { // move right
-		col_selection = (col_selection + 1) % digits;
-		timer = HAL_GetTick();
-	}
-	if (key_buffer == 12) { // move left
-		col_selection = (col_selection + digits - 1) % digits;
-		timer = HAL_GetTick();
-	}
-
-	// POSITION THE CURSOR using map
-	lcd_put_cur(1, cursor_map[col_selection]);
-
-	// INSERT NUMBER KEY
-	if (key_buffer > 0 && key_buffer <= 10) {
-		timer = HAL_GetTick(); // reset timeout on input
-		if (key_buffer == 10)
-			key_buffer = 0; // '0' key
-
-		input_buffer[col_selection] = key_buffer;
-		sprintf(string_buffer, "%1d", key_buffer);
-		lcd_send_string(string_buffer);
-		col_selection = (col_selection + 1) % digits;
-	}
-
-	return 0;
+	return date_editor.exit;
 }
 
 // TEMPERATURE EDIT STATE FUNCTIONS
 
-void temp_e_setup(void) {
-	exit_edit_mode = 0;
-	timer = HAL_GetTick();
-	col_selection = 0;
-
-	input_buffer[0] = programmed_temp / 10;
-	input_buffer[1] = programmed_temp % 10;
-
+void temp_title(){
 	lcd_put_cur(0, 0);
 	lcd_send_string(" A:   B:   #:ENT");
 	lcd_put_cur(0, 4);
@@ -402,30 +398,54 @@ void temp_e_setup(void) {
 	lcd_put_cur(1, 0);
 	sprintf(string_buffer, "%02u TEMP C       ", programmed_temp);
 	lcd_send_string(string_buffer);
+}
+
+void temp_display_update(uint8_t position, uint8_t value){
+	lcd_put_cur(1, cursor_map[position]);
+	sprintf(string_buffer, "%1d", value);
+	lcd_send_string(string_buffer);
+}
+
+uint8_t temp_save(uint8_t *buffer){
+	uint8_t temp_temperature = buffer[0] * 10 + buffer[1];
+	if(temp_temperature <= 40){
+		programmed_temp = temp_temperature;
+		return CLOCK_OK;
+	}
+	return CLOCK_CRITICAL_ERROR;
+}
+
+const EditorDisplay temp_display = {
+		.message = temp_title,
+		.on_update = temp_display_update
+};
+
+Editor temp_editor = {
+		.max_digits = 2,
+		.timeout_ms = 15000,
+		.on_save = temp_save,
+		.display = temp_display
+};
+
+void temp_e_setup(void) {
+
+	uint8_t buffer[2] = {
+		programmed_temp / 10,
+		programmed_temp % 10
+	};
+
+	editor_setup(buffer, 2, &temp_editor);
 
 	lcd_send_cmd(CUR_ON_BLINK_ON);
+	state = IDLE;
 }
 
 uint8_t temp_e_loop(void) {
-	static uint8_t temp_temperature = 50;
-	exit_edit_mode = edition_mode(2, cursor_map);
-	state = IDLE;
-	//ENTER
-	if (key_buffer == 16) {
 
-		temp_temperature = input_buffer[0] * 10 + input_buffer[1];
+	status_buffer = editor_loop(key_buffer, &temp_editor);
+	lcd_put_cur(1, cursor_map[temp_editor.column_selection]);
 
-		if (temp_temperature <= 40) {
-			programmed_temp = temp_temperature;
-			status_buffer = CLOCK_OK;
-			return 1;
-		}
-
-		status_buffer = CLOCK_CRITICAL_ERROR;
-		return 1;
-	}
-
-	return exit_edit_mode;
+	return temp_editor.exit;
 }
 
 //SHOPWINDOW EDIT STATE FUNCTIONS
@@ -491,16 +511,9 @@ uint8_t shopwindow_e_loop(void) {
 	return 0;
 }
 
-void shopwindow_start_setup(void) {
-	exit_edit_mode = 0;
-	timer = HAL_GetTick();
-	col_selection = 0;
+// SHOPWINDOW START EDIT
 
-	input_buffer[0] = hour_start / 10;
-	input_buffer[1] = hour_start % 10;
-	input_buffer[2] = minutes_start / 10;
-	input_buffer[3] = minutes_start % 10;
-
+void sstart_title(){
 	lcd_put_cur(0, 0);
 	lcd_send_string(" A:   B:   #:ENT");
 	lcd_put_cur(0, 4);
@@ -511,48 +524,66 @@ void shopwindow_start_setup(void) {
 	lcd_put_cur(1, 0);
 	sprintf(string_buffer, "%02u:%02u   (INICIO)", hour_start, minutes_start);
 	lcd_send_string(string_buffer);
+}
+
+void sstart_display_update(uint8_t position, uint8_t value){
+	lcd_put_cur(1, cursor_map[position]);
+	sprintf(string_buffer, "%1d", value);
+	lcd_send_string(string_buffer);
+}
+
+uint8_t sstart_save(uint8_t *buffer){
+	uint8_t temp_hour = buffer[0] * 10 + buffer[1];
+	uint8_t temp_minutes = buffer[2] * 10 + buffer[3];
+
+	if (temp_hour < 24 && temp_minutes < 60) {
+		hour_start = temp_hour;
+		minutes_start = temp_minutes;
+		return CLOCK_OK;
+	}
+	if (temp_hour > 23) return CLOCK_ERROR_INVALID_HOUR;
+	if (temp_minutes > 59) return CLOCK_ERROR_INVALID_MINUTE;
+
+	return CLOCK_CRITICAL_ERROR;
+}
+
+const EditorDisplay sstart_display = {
+		.message = sstart_title,
+		.on_update = sstart_display_update
+};
+
+Editor sstart_editor = {
+		.max_digits = 4,
+		.timeout_ms = 15000,
+		.on_save = sstart_save,
+		.display = sstart_display
+};
+
+
+void shopwindow_start_setup(void) {
+	uint8_t buffer[4] = {
+		hour_start / 10,
+		hour_start % 10,
+		minutes_start / 10,
+		minutes_start % 10
+	};
+
+	editor_setup(buffer, 4, &sstart_editor);
 
 	lcd_send_cmd(CUR_ON_BLINK_ON);
+	state = SHOPWINDOW_EDIT;
 }
 
 uint8_t shopwindow_start_loop(void) {
-	static uint8_t temp_hour = 24;
-	static uint8_t temp_minutes = 61;
+	status_buffer = editor_loop(key_buffer, &sstart_editor);
+	lcd_put_cur(1, cursor_map[sstart_editor.column_selection]);
 
-	exit_edit_mode = edition_mode(4, cursor_map);
-	state = SHOPWINDOW_EDIT;
-	//ENTER
-	if (key_buffer == 16) {
-
-		temp_hour = input_buffer[0] * 10 + input_buffer[1];
-		temp_minutes = input_buffer[2] * 10 + input_buffer[3];
-
-		if (temp_hour < 24 && temp_minutes < 60) {
-			hour_start = temp_hour;
-			minutes_start = temp_minutes;
-			status_buffer = CLOCK_OK;
-			return 1;
-		}
-		if (temp_hour > 23)
-			status_buffer = CLOCK_ERROR_INVALID_HOUR;
-		if (temp_minutes > 59)
-			status_buffer = CLOCK_ERROR_INVALID_MINUTE;
-		return 1;
-	}
-
-	return exit_edit_mode;
+	return sstart_editor.exit;
 }
 
-void shopwindow_end_setup(void) {
-	exit_edit_mode = 0;
-	timer = HAL_GetTick();
-	col_selection = 0;
+//SHOPWINDOW END
 
-	input_buffer[0] = hour_end / 10;
-	input_buffer[1] = hour_end % 10;
-	input_buffer[2] = minutes_end / 10;
-	input_buffer[3] = minutes_end % 10;
-
+void send_title(){
 	lcd_put_cur(0, 0);
 	lcd_send_string(" A:   B:   #:ENT");
 	lcd_put_cur(0, 4);
@@ -563,43 +594,66 @@ void shopwindow_end_setup(void) {
 	lcd_put_cur(1, 0);
 	sprintf(string_buffer, "%02u:%02u    (FINAL)", hour_end, minutes_end);
 	lcd_send_string(string_buffer);
+}
+
+void send_display_update(uint8_t position, uint8_t value){
+	lcd_put_cur(1, cursor_map[position]);
+	sprintf(string_buffer, "%1d", value);
+	lcd_send_string(string_buffer);
+}
+
+uint8_t send_save(uint8_t *buffer){
+	uint8_t temp_hour = buffer[0] * 10 + buffer[1];
+	uint8_t temp_minutes = buffer[2] * 10 + buffer[3];
+
+	if (temp_hour < 24 && temp_minutes < 60) {
+		hour_end = temp_hour;
+		minutes_end = temp_minutes;
+		return CLOCK_OK;
+	}
+	if (temp_hour > 23) return CLOCK_ERROR_INVALID_HOUR;
+	if (temp_minutes > 59) return CLOCK_ERROR_INVALID_MINUTE;
+
+	return CLOCK_CRITICAL_ERROR;
+}
+
+const EditorDisplay send_display = {
+		.message = send_title,
+		.on_update = send_display_update
+};
+
+Editor send_editor = {
+		.max_digits = 4,
+		.timeout_ms = 15000,
+		.on_save = send_save,
+		.display = send_display
+};
+
+void shopwindow_end_setup(void) {
+	uint8_t buffer[4] = {
+		hour_end / 10,
+		hour_end % 10,
+		minutes_end / 10,
+		minutes_end % 10
+	};
+
+	editor_setup(buffer, 4, &send_editor);
 
 	lcd_send_cmd(CUR_ON_BLINK_ON);
+	state = SHOPWINDOW_EDIT;
 }
 
 uint8_t shopwindow_end_loop(void) {
-	static uint8_t temp_hour = 24;
-	static uint8_t temp_minutes = 61;
+	status_buffer = editor_loop(key_buffer, &sstart_editor);
+	lcd_put_cur(1, cursor_map[sstart_editor.column_selection]);
 
-	exit_edit_mode = edition_mode(4, cursor_map);
-	state = SHOPWINDOW_EDIT;
-	//ENTER
-	if (key_buffer == 16) {
-
-		temp_hour = input_buffer[0] * 10 + input_buffer[1];
-		temp_minutes = input_buffer[2] * 10 + input_buffer[3];
-
-		if (temp_hour < 24 && temp_minutes < 60) {
-			hour_end = temp_hour;
-			minutes_end = temp_minutes;
-			status_buffer = CLOCK_OK;
-			return 1;
-		}
-		if (temp_hour > 23)
-			status_buffer = CLOCK_ERROR_INVALID_HOUR;
-		if (temp_minutes > 59)
-			status_buffer = CLOCK_ERROR_INVALID_MINUTE;
-		return 1;
-	}
-
-	return exit_edit_mode;
+	return send_editor.exit;
 }
 
 // STATIC HELPER FUNCTIONS
 
 static uint8_t shopwindowState(void) {
-	uint16_t now = (uint16_t) datetime.hours * 60u
-			+ (uint16_t) datetime.minutes;
+	uint16_t now = (uint16_t) datetime.hours * 60u + (uint16_t) datetime.minutes;
 	uint16_t start = (uint16_t) hour_start * 60u + (uint16_t) minutes_start;
 	uint16_t end = (uint16_t) hour_end * 60u + (uint16_t) minutes_end;
 
@@ -636,9 +690,11 @@ static void format_temp(float temp, char *buffer) {
 static void average_temp_sensor(void) {
 	static float temp_sum = 0;
 	float current = poll_sensor();
+
 	temp_sum -= temp_buffer[temp_index];
 	temp_buffer[temp_index] = current;
 	temp_sum += current;
+
 	temp_index = (temp_index + 1) % 10;
 	temp = temp_sum / 10;
 }
