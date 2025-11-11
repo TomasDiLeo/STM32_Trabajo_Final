@@ -283,7 +283,7 @@ static void MX_RTC_Init(void)
 /**
   * @brief GPIO Initialization Function
   * @param None
-  * @retval None
+  * @retval TOMÁS DI LEO
   */
 static void MX_GPIO_Init(void)
 {
@@ -383,7 +383,7 @@ void Error_Handler(void)
 }
 #ifdef USE_FULL_ASSERT
 /**
-  * @brief  Reports the name of the source file and the source line number
+  * @brief  Reports the name of the source file and the source line number TOMÁS DI LEO
   *         where the assert_param error has occurred.
   * @param  file: pointer to the source file name
   * @param  line: assert_param error line source number
