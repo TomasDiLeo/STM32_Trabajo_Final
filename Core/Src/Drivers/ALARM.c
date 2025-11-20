@@ -10,8 +10,8 @@ static GPIO_PinState read_sensor(Sensor sensor);
 static Alarm get_active_alarm(void);
 
 void alarm_init(){
-	low_priority_sensor.pin = GPIO_PIN_9;
-	low_priority_sensor.port = GPIOA;
+	low_priority_sensor.pin = GPIO_PIN_11;
+	low_priority_sensor.port = GPIOB;
 
 	high_priority_sensor.pin = GPIO_PIN_12;
 	high_priority_sensor.port = GPIOB;

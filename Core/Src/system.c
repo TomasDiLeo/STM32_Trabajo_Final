@@ -348,40 +348,6 @@ uint8_t date_edit_loop(void) {
 	return exit_edit_mode;
 }
 
-static uint8_t edition_mode(uint8_t digits, const uint8_t *cursor_map) {
-	// ESCAPE AND TIMEOUT
-	if (key_buffer == 15 || HAL_GetTick() - timer > EXTRA_LONG_DELAY) {
-		return 1;
-	}
-
-	// MOVE CURSOR RIGHT AND LEFT WITH ROLLOVER
-	if (key_buffer == 11) { // move right
-		col_selection = (col_selection + 1) % digits;
-		timer = HAL_GetTick();
-	}
-	if (key_buffer == 12) { // move left
-		col_selection = (col_selection + digits - 1) % digits;
-		timer = HAL_GetTick();
-	}
-
-	// POSITION THE CURSOR using map
-	lcd_put_cur(1, cursor_map[col_selection]);
-
-	// INSERT NUMBER KEY
-	if (key_buffer > 0 && key_buffer <= 10) {
-		timer = HAL_GetTick(); // reset timeout on input
-		if (key_buffer == 10)
-			key_buffer = 0; // '0' key
-
-		input_buffer[col_selection] = key_buffer;
-		sprintf(string_buffer, "%1d", key_buffer);
-		lcd_send_string(string_buffer);
-		col_selection = (col_selection + 1) % digits;
-	}
-
-	return 0;
-}
-
 // TEMPERATURE EDIT STATE FUNCTIONS
 
 void temp_e_setup(void) {
@@ -641,4 +607,38 @@ static void average_temp_sensor(void) {
 	temp_sum += current;
 	temp_index = (temp_index + 1) % 10;
 	temp = temp_sum / 10;
+}
+
+static uint8_t edition_mode(uint8_t digits, const uint8_t *cursor_map) {
+	// ESCAPE AND TIMEOUT
+	if (key_buffer == 15 || HAL_GetTick() - timer > EXTRA_LONG_DELAY) {
+		return 1;
+	}
+
+	// MOVE CURSOR RIGHT AND LEFT WITH ROLLOVER
+	if (key_buffer == 11) { // move right
+		col_selection = (col_selection + 1) % digits;
+		timer = HAL_GetTick();
+	}
+	if (key_buffer == 12) { // move left
+		col_selection = (col_selection + digits - 1) % digits;
+		timer = HAL_GetTick();
+	}
+
+	// POSITION THE CURSOR using map
+	lcd_put_cur(1, cursor_map[col_selection]);
+
+	// INSERT NUMBER KEY
+	if (key_buffer > 0 && key_buffer <= 10) {
+		timer = HAL_GetTick(); // reset timeout on input
+		if (key_buffer == 10)
+			key_buffer = 0; // '0' key
+
+		input_buffer[col_selection] = key_buffer;
+		sprintf(string_buffer, "%1d", key_buffer);
+		lcd_send_string(string_buffer);
+		col_selection = (col_selection + 1) % digits;
+	}
+
+	return 0;
 }
